@@ -74,6 +74,11 @@ jobs:
           release_name: Release ${{ steps.create_tag.outputs.tag_name }}
           draft: false
           prerelease: false
+      - name: Deliver buildinfo
+        uses: actions/upload-artifact@v2
+        with:
+          name: oi-wiki-export_buildinfo
+          path: ./oi-wiki-export/
       - name: Upload Release Asset
         id: upload_release_asset
         uses: actions/upload-release-asset@v1
