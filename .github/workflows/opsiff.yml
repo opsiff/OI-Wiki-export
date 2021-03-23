@@ -1,10 +1,7 @@
 name: Build LaTeX document by opsiff version
 
 on:
-  push:
-  pull_request:
-    types: [opened, reopened]
-
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
