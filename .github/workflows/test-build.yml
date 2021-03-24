@@ -16,7 +16,7 @@ jobs:
           latexmk_use_xelatex: true
           latexmk_shell_escape: true
           extra_system_packages: |
-            coreutils
+            git
             nodejs
             imagemagick
             libwebp
