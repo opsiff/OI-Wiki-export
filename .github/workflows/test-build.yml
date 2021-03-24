@@ -18,7 +18,6 @@ jobs:
           extra_system_packages: |
             git
             nodejs
-            imagemagick
             libwebp
             librsvg
             npm
@@ -48,8 +47,3 @@ jobs:
 
           root_file: |
             oi-wiki-export.tex
-      - name: Deliver buildinfo
-        uses: actions/upload-artifact@v2
-        with:
-          name: oi-wiki-export_buildinfo
-          path: ./oi-wiki-export/
