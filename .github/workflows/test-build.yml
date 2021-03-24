@@ -16,13 +16,12 @@ jobs:
           latexmk_use_xelatex: true
           latexmk_shell_escape: true
           extra_system_packages: |
-            curl
             coreutils
             nodejs
             imagemagick
             libwebp
             librsvg
-            git
+            npm
             py3-pygments
             inkscape
             libxml2
