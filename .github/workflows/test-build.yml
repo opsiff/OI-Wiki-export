@@ -48,9 +48,6 @@ jobs:
             wget https://mirrors.sjtug.sjtu.edu.cn/ctan/fonts/fandol.zip
             unzip -q fandol.zip
             cp fandol/* /usr/share/fonts
-            wget -q "http://mirrors.ctan.org/fonts/cm-unicode.zip"
-            unzip ./cm-unicode.zip
-            cp cm-unicode/fonts/otf/* /usr/share/fonts
             cp STIXv2.0.2/OTF/* /usr/share/fonts
             cp *.ttc /usr/share/fonts
             fc-cache
