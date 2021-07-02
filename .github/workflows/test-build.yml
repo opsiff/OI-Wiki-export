@@ -52,6 +52,9 @@ jobs:
             cp *.ttc /usr/share/fonts
             fc-cache
 
+            cd remark-latex
+            npm i
+            cd ..
             cd oi-wiki-export
             npm i
             git clone https://github.com/OI-wiki/OI-wiki.git --depth=1
