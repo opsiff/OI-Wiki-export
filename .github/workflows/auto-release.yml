@@ -54,9 +54,7 @@ jobs:
             wget -q "https://github.com/adobe-fonts/source-han-super-otc/releases/download/20190603/SourceHan.ttc"
             git clone https://github.com/alif-type/xits --depth=1
             cp xits/*.otf /usr/share/fonts
-            wget https://mirrors.tuna.tsinghua.edu.cn/ctan/fonts/fandol.zip
-            unzip -q fandol.zip
-            cp fandol/* /usr/share/fonts
+            lscpu
             cp STIXv2.0.2/OTF/* /usr/share/fonts
             cp *.ttc /usr/share/fonts
             fc-cache
