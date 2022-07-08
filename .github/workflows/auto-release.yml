@@ -54,7 +54,7 @@ jobs:
             wget -q "https://github.com/adobe-fonts/source-han-super-otc/releases/download/20190603/SourceHan.ttc"
             git clone https://github.com/alif-type/xits --depth=1
             cp xits/*.otf /usr/share/fonts
-            lscpu
+            cat /proc/cpuinfo
             cp STIXv2.0.2/OTF/* /usr/share/fonts
             cp *.ttc /usr/share/fonts
             fc-cache
