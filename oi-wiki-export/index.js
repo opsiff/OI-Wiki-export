@@ -6,7 +6,7 @@ const math = require('remark-math')
 const details = require('remark-details')
 const footnotes = require('remark-footnotes')
 const latex = require('remark-latex')
-const fs = require('fs')
+const fs = require('fs').promises
 const vfile = require('to-vfile')
 const path = require('path')
 const yaml = require('js-yaml')
@@ -16,115 +16,132 @@ const snippet = require('./snippet')
 
 const prefixRegEx = /[^a-zA-Z0-9]/ig
 
-function convertMarkdown(filename, depth) {
-	if (!filename.endsWith('.md')) {
-		console.log('Error: File \'' + filename + '\' is not a markdown file')
-		process.exit()
-	}
-
-	if (!fs.existsSync(filename)) {
-		console.log('Error: File \'' + filename + '\' does not exist')
-		process.exit()
-	}
-
-	unified()
-		.use(parse)
-		.use(math)
-		.use(details)
-		.use(footnotes)
-		.use(latex, {
-			prefix: filename.replace(prefixRegEx, "").replace(/md$/, ""), // 根据路径生成 ID，用作 LaTeX label
-			depth: depth, // 标题 h1 深度
-			current: filename, // 带 md 后缀的文件名
-			root: path.join(oiwikiRoot, 'docs'), // docs/ 目录
-			nested: false,
-			forceEscape: false,
-			path: filename.replace(/\.md$/, "/") // 由文件名转换而来的路径
-		})
-		.process(vfile.readSync(filename), function (err, file) {
-			if (err) {
-				throw err
-			}
-			file.dirname = 'tex'
-			file.stem = filename.replace(prefixRegEx, "")
-			file.extname = '.tex'
-			vfile.writeSync(file)
-		})
+async function exists (file) {
+  try {
+    await fs.access(file)
+  } catch (e) {
+    return false
+  }
+  return true
 }
 
-if (process.argv.length != 3) {
-	console.log('Usage: node ' + __filename.split('/').pop() + ' <oi-wiki-root>')
-	process.exit()
-}
+async function main () {
+  if (process.argv.length !== 3) {
+    console.log('Usage: node ' + __filename.split('/').pop() + ' <oi-wiki-root>')
+    process.exit()
+  }
 
-const oiwikiRoot = process.argv[2] // OI Wiki 根目录
-const yamlFile = path.join(oiwikiRoot, 'mkdocs.yml') // YAML 配置文件
+  const oiwikiRoot = process.argv[2] // OI Wiki 根目录
+  const yamlFile = path.join(oiwikiRoot, 'mkdocs.yml') // YAML 配置文件
 
-console.log('Checking for tex/ directory')
+  console.log('Processing snippets')
 
-try {
-	fs.mkdirSync('tex')
-	fs.mkdirSync('images')
-} catch (e) {
+  await snippet.snippet(oiwikiRoot)
 
-}
-console.log('Exporting OI Wiki from directory: ' + oiwikiRoot)
+  console.log('Checking for tex/ directory')
 
-if (!fs.existsSync(yamlFile)) {
-	console.log('Error: config file \'mkdocs.yml\' does not exist')
-	process.exit()
-}
+  try {
+    await fs.mkdir('tex')
+    await fs.mkdir('images')
+  } catch (e) {
 
-console.log('Config file: ' + yamlFile)
+  }
+  console.log('Exporting OI Wiki from directory: ' + oiwikiRoot)
 
-// fix: match all types
-const yamlFileContent = await fs.readFile(yamlFile, 'utf8');
+  if (!await exists(yamlFile)) {
+    console.log('Error: config file \'mkdocs.yml\' does not exist')
+    process.exit()
+  }
 
-// fix YAMLException: unknown tag
-const types = yamlFileContent.match(/!!python\/name:.*/g).map(
-s =>
-  new yaml.Type(s.replace('!!', 'tag:yaml.org,2002:'), {
-    kind: 'mapping',
-    construct: function (data) {
-      return data
+  console.log('Config file: ' + yamlFile)
+  
+  // fix: match all types
+  const yamlFileContent = await fs.readFile(yamlFile, 'utf8');
+
+  // fix YAMLException: unknown tag
+  const types = yamlFileContent.match(/!!python\/name:.*/g).map(
+      s =>
+          new yaml.Type(s.replace('!!', 'tag:yaml.org,2002:'), {
+            kind: 'mapping',
+            construct: function (data) {
+              return data
+            }
+          })
+  )
+  const CONFIG_SCHEMA = yaml.Schema.create(types)
+
+  const config = yaml.load(yamlFileContent, { schema: CONFIG_SCHEMA })
+  const catalog = config.nav // 文档目录
+
+  let includes = ''
+  for (const id in catalog) {
+    const texModule = path.join('tex', id.toString())
+    await fs.writeFile(texModule + '.tex', await exportRecursive(catalog[id], 0))
+    includes += '\\input{' + texModule + '}\n' // 输出 includes.tex 章节目录文件
+  }
+
+  await fs.writeFile('includes.tex', includes)
+  console.log('Complete')
+
+  async function convertMarkdown (filename, depth) {
+    if (!filename.endsWith('.md')) {
+      console.log('Error: File \'' + filename + '\' is not a markdown file')
+      process.exit()
     }
-  })
-)
-const CONFIG_SCHEMA = yaml.Schema.create(types)
 
-const config = yaml.load(yamlFileContent, { schema: CONFIG_SCHEMA })
-const catalog = config.nav // 文档目录
+    if (!await exists(filename)) {
+      console.log('Error: File \'' + filename + '\' does not exist')
+      process.exit()
+    }
 
-let includes = ''
-for (const id in catalog) {
-	const texModule = path.join('tex', id.toString())
-	fs.writeFileSync(texModule + '.tex', exportRecursive(catalog[id], 0))
-	includes += '\\input{' + texModule + '}\n' // 输出 includes.tex 章节目录文件
+    unified()
+      .use(parse)
+      .use(math)
+      .use(details)
+      .use(footnotes)
+      .use(latex, {
+        prefix: filename.replace(prefixRegEx, '').replace(/md$/, ''), // 根据路径生成 ID，用作 LaTeX label
+        depth: depth, // 标题 h1 深度
+        current: filename, // 带 md 后缀的文件名
+        root: path.join(oiwikiRoot, 'docs'), // docs/ 目录
+        nested: false,
+        forceEscape: false,
+        path: filename.replace(/\.md$/, '/') // 由文件名转换而来的路径
+      })
+      .process(await vfile.read(filename), function (err, file) {
+        if (err) {
+          throw err
+        }
+        file.dirname = 'tex'
+        file.stem = filename.replace(prefixRegEx, '')
+        file.extname = '.tex'
+        vfile.writeSync(file)
+      })
+  }
+
+  // 递归处理各个 chapter
+  async function exportRecursive (object, depth) {
+    const block = ['chapter', 'section', 'subsection', 'subsubsection', 'paragraph', 'subparagraph'] // 各层次对应的 TeX 命令
+    let result = ''
+    depth = Math.min(depth, block.length)
+    for (const key in object) {
+      console.log('Exporting: ' + key)
+      result += '\\' + block[depth] + '{' + escape(key) + '}\n'
+      if (typeof object[key] === 'string') { // 对应页面
+        await convertMarkdown(path.join(oiwikiRoot, 'docs', object[key]), depth + 1)
+        result += '\\input{' + escape(getTexModuleName(object[key])) + '}\n'
+      } else { // 对应子目录
+        for (const id in object[key]) {
+          result += await exportRecursive(object[key][id], depth + 1)
+        }
+      }
+    }
+    return result
+  }
+
+  function getTexModuleName (name) {
+    return path.join('tex', path.join(oiwikiRoot, 'docs', name).replace(prefixRegEx, ''))
+  }
 }
 
-fs.writeFileSync('includes.tex', includes)
-console.log('Complete')
-
-// 递归处理各个 chapter
-function exportRecursive(object, depth) {
-	const block = ['chapter', 'section', 'subsection', 'subsubsection', 'paragraph', 'subparagraph'] // 各层次对应的 TeX 命令
-	let result = ''
-	depth = Math.min(depth, block.length)
-	for (const key in object) {
-		console.log('Exporting: ' + key)
-		result += '\\' + block[depth] + '{' + escape(key) + '}\n'
-		if (typeof object[key] == "string") { // 对应页面
-			convertMarkdown(path.join(oiwikiRoot, 'docs', object[key]), depth + 1)
-			result += '\\input{' + escape(getTexModuleName(object[key])) + '}\n'
-		} else { // 对应子目录
-			for (const id in object[key]) {
-				result += exportRecursive(object[key][id], depth + 1)
-			}
-		}
-	}
-	return result
-}
-
-function getTexModuleName(name) {
-	return path.join('tex', path.join(oiwikiRoot, 'docs', name).replace(prefixRegEx, ""))
-}
+main()
