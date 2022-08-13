@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "tiny-glob": "^0.2.9",
     "remark-parse": "^6.0.2",
     "remark-latex": "file:../remark-latex",
     "js-yaml": "^3.14.0",
