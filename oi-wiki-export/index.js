@@ -54,8 +54,7 @@ async function main () {
   }
 
   console.log('Config file: ' + yamlFile)
-  
-  // fix: match all types
+
   const yamlFileContent = await fs.readFile(yamlFile, 'utf8');
 
   // fix YAMLException: unknown tag
